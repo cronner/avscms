@@ -5,13 +5,14 @@ require 'include/function_global.php';
 require 'include/function_smarty.php';
 require 'classes/auth.class.php';
 require 'classes/filter.class.php';
+require 'classes/csrf.class.php';
 
 if ( $config['video_module'] == '0' ) {
     VRedirect::go($config['BASE_URL']. '/notfound/page_invalid');
 }
 
 if ($config['edit_videos'] == '0') {
-	VRedirect::go($config['BASE_URL']. '/notfound/page_invalid');
+VRedirect::go($config['BASE_URL']. '/notfound/page_invalid');
 }
 
 Auth::check_();
@@ -25,61 +26,65 @@ $uid = (int) $_SESSION['uid'];
 $sql = "SELECT VID FROM video WHERE VID = ".$vid." AND UID = ".$uid." AND active = '1' LIMIT 1";
 $conn->execute($sql);
 if ($conn->Affected_Rows()) {
-	$err['title'] = 0;
-	$err['tags'] = 0;
-	$err['category'] = 0;
-	
-	$categories = get_categories();
-	if (isset($_POST['edit_submit'])) {
-		$filter 	= new VFilter();
-		$title		= $filter->get('title');
-		$description = $filter->get('description');		
-		$keyword	= $filter->get('keyword');
-		$channel	= $filter->get('channel', 'INTEGER');
-		$type		= $filter->get('type');
-		$thumb		= $filter->get('thumb', 'INTEGER');
-		
-		if ( $title == '' ) {
-      		$errors[] = $lang['upload.video_title_empty'];
-      		$err['title'] = 1;
-		}
-		
-		if ( $keyword == '' ) {
-      		$errors[] = $lang['upload.video_tags_empty'];
-			$err['tags'] = 1;
-  		} else {
-      		$keyword  = prepare_tags($keyword);
-  		}
+$err['title'] = 0;
+$err['tags'] = 0;
+$err['category'] = 0;
 
-  		if ( $channel == '0' ) {
-      		$errors[] = $lang['global.category_empty'];
-			$err['category'] = 1;
-  		}
+$categories = get_categories();
+if (isset($_POST['edit_submit'])) {
+// CSRF Protection
+if (!CSRF::verify()) {
+$errors[] = 'Invalid security token. Please try again.';
+} else {
+$filter= new VFilter();
+$title= $filter->get('title');
+$description = $filter->get('description');word= $filter->get('keyword');
+$channel= $filter->get('channel', 'INTEGER');
+$type= $filter->get('type');
+$thumb= $filter->get('thumb', 'INTEGER');
 
-		if (!$errors) {
-			update_tags($vid, $keyword);
-			$type  = ($type == 'public') ? 'public' : 'private';
-			$thumb = ($thumb === 0) ? 1 : $thumb;
-			$sql   = "UPDATE video
-			          SET title = ".$conn->qStr($title).", 
-						 description = ".$conn->qStr($description).", 
-					     keyword = ".$conn->qStr($keyword).",
-						 type = '".$type."',
-						 channel = '".$channel."',
-						 thumb = '".$thumb."'
-					  WHERE VID = ".$vid."
-					  AND UID = ".$uid."
-					  AND active = '1'
-					  LIMIT 1";
-			$conn->execute($sql);
-			$messages[] = $lang['edit.success'];
-		}	
-	}
-	
-	$sql   		= "SELECT * FROM video WHERE VID = ".$vid." AND UID = ".$uid." AND active = '1' LIMIT 1";
-	$rs    		= $conn->execute($sql);
-	$video 		= $rs->getrows();
-	$video 		= $video['0'];
+if ( $title == '' ) {
+     $errors[] = $lang['upload.video_title_empty'];
+     $err['title'] = 1;
+}
+
+if ( $keyword == '' ) {
+     $errors[] = $lang['upload.video_tags_empty'];
+$err['tags'] = 1;
+  } else {
+     $keyword  = prepare_tags($keyword);
+  }
+
+  if ( $channel == '0' ) {
+     $errors[] = $lang['global.category_empty'];
+$err['category'] = 1;
+  }
+
+if (!$errors) {
+update_tags($vid, $keyword);
+$type  = ($type == 'public') ? 'public' : 'private';
+$thumb = ($thumb === 0) ? 1 : $thumb;
+$sql   = "UPDATE video
+          SET title = ".$conn->qStr($title).", 
+description = ".$conn->qStr($description).", 
+     keyword = ".$conn->qStr($keyword).",
+ type = '".$type."',
+ channel = '".$channel."',
+ thumb = '".$thumb."'
+  WHERE VID = ".$vid."
+  AND UID = ".$uid."
+  AND active = '1'
+  LIMIT 1";
+$conn->execute($sql);
+$messages[] = $lang['edit.success'];
+}
+}
+}
+
+$sql  = "SELECT * FROM video WHERE VID = ".$vid." AND UID = ".$uid." AND active = '1' LIMIT 1";
+$rs   = $conn->execute($sql);
+$video = $rs->getrows();
+$video = $video['0'];
 } else {
     VRedirect::go($config['BASE_URL']. '/notfound/video_missing');
 }
