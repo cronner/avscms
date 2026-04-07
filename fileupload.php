@@ -56,13 +56,39 @@ $fileName = preg_replace('/[^\w\._]+/', '_', $fileName);
 // --- SECURITY: filtype‑whitelist + max size ---
 $allowed_ext = array('avi','mpg','mov','asf','mpeg','xvid','divx','3gp','mkv','3gpp','mp4','rmvb','rm','dat','wmv','flv','ogg','ogv','webm');
 $ext = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+
+// Validate file extension
 if (!in_array($ext, $allowed_ext)) {
     http_response_code(400);
     die('{"jsonrpc" : "2.0", "error" : {"code": 112, "message": "File type not allowed."}, "id" : "id"}');
 }
 
-// Optional: begræns filstørrelse (råt eksempel, afhænger af dit setup)
-if (!empty($_FILES['file']['size']) && $_FILES['file']['size'] > $config['max_video_size']) {
+// Additional MIME type validation using finfo (if available)
+if (!empty($_FILES['file']['tmp_name']) && function_exists('finfo_file')) {
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    $mime_type = finfo_file($finfo, $_FILES['file']['tmp_name']);
+    finfo_close($finfo);
+    
+    // Allow common video MIME types
+    $allowed_mime_types = array(
+        'video/avi', 'video/mpeg', 'video/quicktime', 'video/x-ms-asf', 
+        'video/x-flv', 'video/x-matroska', 'video/mp4', 'video/x-ms-wmv',
+        'video/ogg', 'video/webm', 'video/3gpp', 'video/3gpp2',
+        'application/octet-stream' // Fallback for some containers
+    );
+    
+    if (!in_array($mime_type, $allowed_mime_types)) {
+        http_response_code(400);
+        die('{"jsonrpc" : "2.0", "error" : {"code": 112, "message": "Invalid file content type."}, "id" : "id"}');
+    }
+}
+
+// Optional: begræns filstørrelse med hardcoded fallback
+$max_size = isset($config['max_video_size']) && $config['max_video_size'] > 0 
+    ? $config['max_video_size'] 
+    : 2 * 1024 * 1024 * 1024; // 2GB fallback limit
+    
+if (!empty($_FILES['file']['size']) && $_FILES['file']['size'] > $max_size) {
     http_response_code(400);
     die('{"jsonrpc" : "2.0", "error" : {"code": 113, "message": "File too large."}, "id" : "id"}');
 }

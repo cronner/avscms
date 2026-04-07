@@ -8,51 +8,56 @@ require 'include/function_smarty.php';
 require 'classes/email.class.php';
 require 'classes/curl.class.php';
 require 'classes/image.class.php';
+require 'classes/csrf.class.php';
 
 if ( $config['user_registration'] == '0' ) {
     VRedirect::go($config['BASE_URL']. '/notfound/registration_disabled');
 }
 
 if ( isset($_POST['fb-signup-submit-new']) ) {
-	
-	//FB new user
-	$filter             = new VFilter();
-	$valid              = new VValidation();
-	$id                 = $filter->get('fb-signup-id');	
-	$username           = $filter->get('fb-signup-username');
-	$password_clear     = generateRandomString();
-	$password           = md5($password_clear);
-	$email              = $filter->get('fb-signup-email');
-	$fname              = $filter->get('fb-signup-first-name');
-	$lname              = $filter->get('fb-signup-last-name');
-	$age_min            = $filter->get('fb-signup-age-min', 'INTEGER');
-	$gender             = ucfirst($filter->get('fb-signup-gender'));
-	$use_pp             = $filter->get('fb-signup-usepp');
-	
-	if ($use_pp != '') {
-		$picture = $_POST['fb-signup-picture'];
-	}
-	if ($email != $_SESSION['fb_signup_email']) {
-		$errors[] = $lang['signup.email_invalid'];
-	}	
-	if ( $username == '' ) {
-		$errors[] = $lang['socialsignup.user_format_error'];
-	} elseif ( strlen($username) > 15 or strlen($username) < 2) {
-		$errors[] = $lang['socialsignup.user_format_error'];
-	} elseif ( !$valid->username($username) ) {
-		$errors[] = $lang['socialsignup.user_format_error'];
-	} elseif ( $valid->usernameExists($username) ) {
-		$errors[] = $lang['socialsignup.user_existing_error'];
-	}	
-	/*
-	if ($age_min < 18) {
-		$errors[] = $lang['signup.age_err'];
-	}
-	*/
-	if ($gender != 'Female') {
-		$gender = 'Male';
-	}
-	if (!$errors) {
+    // CSRF Protection
+    if (!CSRF::verify()) {
+        $errors[] = 'Invalid security token. Please try again.';
+    } else {
+    
+    //FB new user
+    $filter             = new VFilter();
+    $valid              = new VValidation();
+    $id                 = $filter->get('fb-signup-id');	
+    $username           = $filter->get('fb-signup-username');
+    $password_clear     = generateRandomString();
+    $password           = password_hash($password_clear, PASSWORD_ARGON2ID);
+    $email              = $filter->get('fb-signup-email');
+    $fname              = $filter->get('fb-signup-first-name');
+    $lname              = $filter->get('fb-signup-last-name');
+    $age_min            = $filter->get('fb-signup-age-min', 'INTEGER');
+    $gender             = ucfirst($filter->get('fb-signup-gender'));
+    $use_pp             = $filter->get('fb-signup-usepp');
+    
+    if ($use_pp != '') {
+        $picture = $_POST['fb-signup-picture'];
+    }
+    if ($email != $_SESSION['fb_signup_email']) {
+        $errors[] = $lang['signup.email_invalid'];
+    }	
+    if ( $username == '' ) {
+        $errors[] = $lang['socialsignup.user_format_error'];
+    } elseif ( strlen($username) > 15 or strlen($username) < 2) {
+        $errors[] = $lang['socialsignup.user_format_error'];
+    } elseif ( !$valid->username($username) ) {
+        $errors[] = $lang['socialsignup.user_format_error'];
+    } elseif ( $valid->usernameExists($username) ) {
+        $errors[] = $lang['socialsignup.user_existing_error'];
+    }	
+    /*
+    if ($age_min < 18) {
+        $errors[] = $lang['signup.age_err'];
+    }
+    */
+    if ($gender != 'Female') {
+        $gender = 'Male';
+    }
+    if (!$errors) {
 
 		$sql = "INSERT INTO signup SET 
 				email = " .$conn->qStr($email). ", 
@@ -136,8 +141,14 @@ if ( isset($_POST['fb-signup-submit-new']) ) {
             $errors[] = $lang['login.invalid'];
         }		
 	}
+    } // End CSRF else
 } elseif (isset($_POST['fb-signup-submit-existing'])) {
-	
+    
+    // CSRF Protection
+    if (!CSRF::verify()) {
+        $errors[] = 'Invalid security token. Please try again.';
+    } else {
+
 	//FB link account
 	$filter             = new VFilter();
 	$valid              = new VValidation();
@@ -169,7 +180,7 @@ if ( isset($_POST['fb-signup-submit-new']) ) {
         if ( $conn->Affected_Rows() == 1 ) {		
 			$user = $rs->getrows();	
 			$uid  = $user['0']['UID'];		
-			$password = md5($password);
+			$password = password_hash($password, PASSWORD_ARGON2ID);
 			if ( $password == $user['0']['pwd'] ) {
 				$sql = "UPDATE signup SET 
 						fname = " .$conn->qStr($fname). ", 
@@ -230,7 +241,13 @@ if ( isset($_POST['fb-signup-submit-new']) ) {
             $errors[] = $lang['login.invalid'];
         }
 	}
+    } // End CSRF else
 } elseif ( isset($_POST['g-signup-submit-new']) ) {
+
+    // CSRF Protection
+    if (!CSRF::verify()) {
+        $errors[] = 'Invalid security token. Please try again.';
+    } else {
 
 	//G new user
 	$filter             = new VFilter();
@@ -238,7 +255,7 @@ if ( isset($_POST['fb-signup-submit-new']) ) {
 	$id                 = $filter->get('g-signup-id');	
 	$username           = $filter->get('g-signup-username');
 	$password_clear     = generateRandomString();
-	$password           = md5($password_clear);
+	$password           = password_hash($password_clear, PASSWORD_ARGON2ID);
 	$email              = $filter->get('g-signup-email');
 	$fname              = $filter->get('g-signup-first-name');
 	$lname              = $filter->get('g-signup-last-name');
@@ -355,8 +372,14 @@ if ( isset($_POST['fb-signup-submit-new']) ) {
             $errors[] = $lang['login.invalid'];
         }		
 	}
+    } // End CSRF else
 } elseif (isset($_POST['g-signup-submit-existing'])) {
-	
+    
+    // CSRF Protection
+    if (!CSRF::verify()) {
+        $errors[] = 'Invalid security token. Please try again.';
+    } else {
+
 	//G link account
 	$filter             = new VFilter();
 	$valid              = new VValidation();
@@ -388,7 +411,7 @@ if ( isset($_POST['fb-signup-submit-new']) ) {
         if ( $conn->Affected_Rows() == 1 ) {		
 			$user = $rs->getrows();	
 			$uid  = $user['0']['UID'];		
-			$password = md5($password);
+			$password = password_hash($password, PASSWORD_ARGON2ID);
 			if ( $password == $user['0']['pwd'] ) {
 				$sql = "UPDATE signup SET 
 						fname = " .$conn->qStr($fname). ", 
@@ -449,10 +472,16 @@ if ( isset($_POST['fb-signup-submit-new']) ) {
             $errors[] = $lang['login.invalid'];
         }
 	}	
+    } // End CSRF else
 } else {
 	$signup     = array('username' => '', 'email' => '', 'age' => '', 'terms' => '', 'gender' => '');
 	if ( isset($_POST['submit_signup']) ) {
-		
+	    
+	    // CSRF Protection
+	    if (!CSRF::verify()) {
+	        $errors[] = 'Invalid security token. Please try again.';
+	    } else {
+	    
 		$filter             = new VFilter();
 		$valid              = new VValidation();
 		$username           = $filter->get('username');
@@ -551,7 +580,7 @@ if ( isset($_POST['fb-signup-submit-new']) ) {
 		if ( !$errors ) {
 			require 'classes/random.class.php';
 			$password_clear = $password;
-			$password       = md5($password);
+			$password       = password_hash($password, PASSWORD_ARGON2ID);
 			$sql            = "INSERT INTO signup SET email = " .$conn->qStr($email). ", username = " .$conn->qStr($username). ",
 							  pwd = " .$conn->qStr($password). ", gender = '" .$gender. "',
 							  addtime = '" .time(). "', logintime = '" .time(). "'";  
@@ -601,6 +630,7 @@ if ( isset($_POST['fb-signup-submit-new']) ) {
 			VRedirect::go($config['BASE_URL']);
 		}
 	}
+    } // End CSRF else
 }
 
 function generateRandomString($length = 10) {
